@@ -1,3 +1,4 @@
+#include "gen_json.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -21,9 +22,8 @@ string ContentFiles(int ex, mt19937 &gen){
     uniform_int_distribution<> content_char(97, 122);
     uniform_int_distribution<> count_string(1, 100);
     string word;
-    string itog_for_csv;
-    itog_for_csv += "id,name";
-
+    ostringstream oss;
+    oss << "id,name";
     if (ex == 0){ 
         int len = count_char(gen);
         for(int i=0; i<len; i++) word += (char)content_char(gen);
@@ -36,21 +36,20 @@ string ContentFiles(int ex, mt19937 &gen){
             for(int j=0; j<len; j++){
                 word += (char)content_char(gen);
             }
-            itog_for_csv += "\\n" + to_string(i) + "," + word;
+            oss << "\\n" << i << "," << word;
         }
-        if(!itog_for_csv.empty()) itog_for_csv.pop_back();
-        return itog_for_csv;
+        return oss.str();
     }
 }
 
-int main() {
-
+// основная функция генерации JSON-файлов
+void GenerateJSON(int min_files, int max_files) {
     random_device rd;
     mt19937 gen(rd());
     uniform_int_distribution<> ext(0, 1);
     uniform_int_distribution<> count_json(5, 10);
 
-    int count_files = CountFiles(400000, 500000, gen);
+    int count_files = CountFiles(min_files, max_files, gen);
     int cnt_json = count_json(gen); 
     int count_in_every = count_files / cnt_json;
     int count_in_last = count_files % cnt_json;
@@ -73,7 +72,7 @@ int main() {
             fout << "\n";
         }
 
-        fout << "]";
+        fout << "]";            
         fout.close();             
     }
 }
