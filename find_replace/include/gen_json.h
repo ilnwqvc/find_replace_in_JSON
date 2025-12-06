@@ -55,7 +55,7 @@ void GenerateJSON(int min_files, int max_files) {
     int count_in_last = count_files % cnt_json;
 
     for (int i = 1; i <= cnt_json; i++) {
-        string json_name = "data" + to_string(i) + ".json";
+        string json_name = "../data/data" + to_string(i) + ".json";
         ofstream fout(json_name); 
         fout << "[\n";
 

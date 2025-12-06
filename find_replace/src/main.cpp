@@ -1,4 +1,4 @@
-#include "GenJson/gen_json.h"
+#include "../include/gen_json.h"
 #include <iostream>
 #include <vector>
 #include <iomanip>
@@ -8,12 +8,52 @@
 #include <fstream>
 #include <clocale>
 #include <filesystem>
+#include <chrono>
+#include <ctime>
 
 using namespace std;
+chrono::system_clock::time_point session_start;
 namespace fs = std::filesystem;
 
+struct SessionStats {
+    long long total_matches = 0;
+    long long total_replacements = 0;
+    long long total_commands = 0;
+    vector<pair<string, long long>> replacements_per_file;
+};
+
+SessionStats stats;
+
+void write_report() {
+    ofstream fout("../docs/report.txt");
+
+    auto now = chrono::system_clock::now();
+    time_t now_time = chrono::system_clock::to_time_t(now);
+
+    auto duration = chrono::duration_cast<chrono::seconds>(now - session_start);
+    long long hours = duration.count() / 3600;
+    long long minutes = (duration.count() % 3600) / 60;
+    long long seconds = duration.count() % 60;
+
+    fout << "=== ОТЧЁТ ПО СЕССИИ ===\n";
+    fout << "Дата и время отчёта: " << std::ctime(&now_time);
+    fout << "Продолжительность сессии: " 
+         << hours << "ч " << minutes << "м " << seconds << "с\n";
+    fout << "Общее количество введённых команд: " << stats.total_commands << "\n";
+    fout << "Общее количество найденных совпадений: " << stats.total_matches << "\n";
+    fout << "Общее количество выполненных замен: " << stats.total_replacements << "\n";
+    fout << "Количество замен по файлам:\n";
+    for (auto &p : stats.replacements_per_file) {
+        fout << "  " << p.first << ": " << p.second << "\n";
+    }
+    fout << "========================\n";
+
+    fout.close();
+}
+
 void close_program() {
-    for (const auto& entry : fs::directory_iterator(".")) {
+    write_report();
+    for (const auto& entry : fs::directory_iterator("../data")) {
         if (entry.path().extension() == ".json") {
             fs::remove(entry.path());
         }
@@ -23,11 +63,13 @@ void close_program() {
 }
 
 void find_in_file(const string& sub_to_found) {
+    stats.total_commands++;
     int i = 1;
     bool founded = false;
     long long int count_find = 0;
     while (true) {
-        string filename = "data" + to_string(i) + ".json";
+        string filename = "../data/data" + to_string(i) + ".json";
+        string shortname = filename.substr(filename.find_last_of("/") + 1);
         ifstream fin(filename);
         if (!fin.is_open()) break;
         string line;
@@ -45,102 +87,87 @@ void find_in_file(const string& sub_to_found) {
             if (pos_end_substr == string::npos) continue;
             string sub = line.substr(pos_start_substr, pos_end_substr - pos_start_substr);
             if (sub.find(sub_to_found) != string::npos) {
-                cout << filename << "   " << name << "   " << sub << endl;
+                cout << shortname << "   " << name << "   " << sub << endl;
                 count_find +=1;
                 founded = true;
             }
         }
-
         i++;
     }
+    stats.total_matches += count_find;
     cout << "Всего было найдено " << count_find << " совпадений." << endl;
-    if (founded == false){
+    if (!founded){
         cout << "Подстрока " << sub_to_found << " не была найдена ни в одном файле." << endl;
     }
 }
 
 void replace_in_file(string name_json, string name_file, string substr, string substr_replaced){
-    ifstream fin(name_json + ".json");
-    ofstream fout(name_json + "edited.json");
-
+    stats.total_commands++;
+    ifstream fin("../data/"+ name_json + ".json");
+    ofstream fout("../data/"+ name_json + "edited.json");
     if (!fin.is_open()){
         cout << "Не удалось найти данный файл." << endl;
         return;
     }
-
     string line;
     size_t count_replace = 0;
-
     while (getline(fin, line)) {
-
         if (line.find(name_file) != string::npos && line.find("\"content\"") != string::npos) {
-
             while (line.find(substr) != string::npos) {
                 size_t pos = line.find(substr);
                 line.replace(pos, substr.size(), substr_replaced);
                 count_replace++;
             }
-
             fout << line << endl;
-
         } else {
             fout << line << endl;
         }
     }
-
+    if (count_replace > 0) stats.replacements_per_file.push_back({name_json + "edited.json", count_replace});
+    stats.total_replacements += count_replace;
     cout << "Файл " << name_json + "edited.json создан." << endl;
     cout << "Всего было совершено " << count_replace << " замен." << endl;
-
     fin.close();
     fout.close();
 }
 
-
 void replace_all(string name_json, string substr, string substr_replaced){
-    ifstream fin(name_json + ".json");
-    ofstream fout(name_json + "edited.json");
-
+    stats.total_commands++;
+    ifstream fin("../data/" + name_json + ".json");
+    ofstream fout("../data/" + name_json + "edited.json");
     if (!fin.is_open()){
         cout << "Не удалось найти данный файл." << endl;
         return;
     }
-
     string line;
     size_t count_replace = 0;
-
     while (getline(fin, line)) {
-
-        if (line.find("\"content\"") != string::npos &&
-            line.find(substr) != string::npos) {
-
+        if (line.find("\"content\"") != string::npos && line.find(substr) != string::npos) {
             while (line.find(substr) != string::npos) {
                 size_t pos = line.find(substr);
                 line.replace(pos, substr.size(), substr_replaced);
                 count_replace++;
             }
         }
-
         fout << line << endl;
     }
-
+    if (count_replace > 0) stats.replacements_per_file.push_back({name_json + "edited.json", count_replace});
+    stats.total_replacements += count_replace;
     cout << "Файл " << name_json + "edited.json создан." << endl;
     cout << "Всего было совершено " << count_replace << " замен." << endl;
-
     fin.close();
     fout.close();
 }
 
-
-
 int main(){
     setlocale(LC_ALL, "Russian");
+    session_start = chrono::system_clock::now();
     GenerateJSON(400000, 500000);
     string command;
     cout << "Файлы json были успешно сгенерированы, введите необходимую команду, или \"--help\" для получения списка команд." << endl;
 
     while (true){
         cin >> command;
-        
         if (command != "--dry-run"){
             if (command == "--help"){
                 cout << "Список доступных команд: " << 
@@ -179,34 +206,32 @@ int main(){
             } else {
                 cout << "Введена неверная команда, попробуйте снова." << endl;
             }
-
         } else {
-            cout << "Включен режим \"ТОЛЬКО ПОИСК\", чтобы посмотреть доступные команды введите --help." << endl;
-            string in_dr_command;
-            cin >> in_dr_command;
-
-            if (in_dr_command == "--dry-end"){
-                cout << "Режим dry-run успешно завершен." << endl;
-                command = "";   
-
-            } else {
-                if (in_dr_command == "--help"){
-                    cout << "Список доступных команд: " << 
-                    "\nПолучение информации о доступных командах - \"--help\"" <<
-                    "\nПоиск слова в содержании файлов - \"--find\"" << 
-                    "\nЗавершить режим \"Только поиск\" - \"--dry-end\"" <<
-                    "\nЗавершение работы и удаление json файлов - \"--exit\"" << endl;
-
-                } else if (in_dr_command == "--find"){
-                    cout << "\nВведите искомую подстроку: ";
-                    string sub_found;
-                    cin >> sub_found;
-                    cout << "  Файл json  Файл с подстрокой  Содержание" << endl;
-                    find_in_file(sub_found);
-                } else if (in_dr_command == "--exit"){
-                    close_program();
+            while (command != "--dry-end") {
+                cout << "Включен режим \"ТОЛЬКО ПОИСК\", чтобы посмотреть доступные команды введите --help." << endl;
+                string in_dr_command;
+                cin >> in_dr_command;
+                if (in_dr_command == "--dry-end"){
+                    cout << "Режим dry-run успешно завершен." << endl;
+                    command = "--dry-end";   
                 } else {
-                    cout << "Введена неверная команда, попробуйте снова." << endl;
+                    if (in_dr_command == "--help"){
+                        cout << "Список доступных команд: " << 
+                        "\nПолучение информации о доступных командах - \"--help\"" <<
+                        "\nПоиск слова в содержании файлов - \"--find\"" << 
+                        "\nЗавершить режим \"Только поиск\" - \"--dry-end\"" <<
+                        "\nЗавершение работы и удаление json файлов - \"--exit\"" << endl;
+                    } else if (in_dr_command == "--find"){
+                        cout << "\nВведите искомую подстроку: ";
+                        string sub_found;
+                        cin >> sub_found;
+                        cout << "  Файл json  Файл с подстрокой  Содержание" << endl;
+                        find_in_file(sub_found);
+                    } else if (in_dr_command == "--exit"){
+                        close_program();
+                    } else {
+                        cout << "Введена неверная команда, попробуйте снова." << endl;
+                    }
                 }
             }
         }
