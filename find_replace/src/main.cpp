@@ -36,7 +36,7 @@ void write_report() {
     long long seconds = duration.count() % 60;
 
     fout << "=== ОТЧЁТ ПО СЕССИИ ===\n";
-    fout << "Дата и время отчёта: " << std::ctime(&now_time);
+    fout << "Дата и время отчёта: " << ctime(&now_time);
     fout << "Продолжительность сессии: " 
          << hours << "ч " << minutes << "м " << seconds << "с\n";
     fout << "Общее количество введённых команд: " << stats.total_commands << "\n";
