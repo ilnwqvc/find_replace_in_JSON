@@ -162,9 +162,19 @@ void replace_all(string name_json, string substr, string substr_replaced){
 int main(){
     setlocale(LC_ALL, "Russian");
     session_start = chrono::system_clock::now();
-    GenerateJSON(400000, 500000);
+    string start_command;
+    cout << "Для запуска программы с генерацией json файлов введите --start-generate, для запуска без генерации введите --start." << endl;
+    cin >> start_command;
+    if (start_command == "--start-generate"){
+        GenerateJSON(400000, 500000);
+        cout << "Файлы json были успешно сгенерированы, введите необходимую команду, или \"--help\" для получения списка команд." << endl;
+    } else if (start_command == "--start"){
+        cout << "Запущен режим работы с уже имеющимися json файлами, введите необходимую команду, или \"--help\" для получения списка команд." << endl;
+    } else {
+        cout << "Ошибка. Неизвестная команда, доступны режимы --start или --start-generate." << endl;
+    }
+
     string command;
-    cout << "Файлы json были успешно сгенерированы, введите необходимую команду, или \"--help\" для получения списка команд." << endl;
 
     while (true){
         cin >> command;
@@ -176,7 +186,8 @@ int main(){
                 "\nЗамена содержимого во всех файлах - \"--replaceall\"" << 
                 "\nЗамена содержимого только в одном файле - \"--replacein\"" << 
                 "\nРежим \"ТОЛЬКО ПОИСК\" - \"--dry-run\"" << 
-                "\nЗавершение работы и удаление json файлов - \"--exit\"" << endl;
+                "\nЗавершение работы и удаление json файлов - \"--exit\"" << 
+                "\nЗавершение работы без удаления json файлов - \"--exitn\"" << endl;
 
             } else if (command == "--find"){
                 cout << "Введите искомую подстроку: ";
@@ -203,6 +214,9 @@ int main(){
                 replace_in_file(name_j, name_f, sub, sub_r);
             } else if (command == "--exit"){
                 close_program();
+            } else if (command == "--exitn") {
+                cout << "Программа завершена." << endl;
+                exit(0); 
             } else {
                 cout << "Введена неверная команда, попробуйте снова." << endl;
             }
@@ -220,7 +234,8 @@ int main(){
                         "\nПолучение информации о доступных командах - \"--help\"" <<
                         "\nПоиск слова в содержании файлов - \"--find\"" << 
                         "\nЗавершить режим \"Только поиск\" - \"--dry-end\"" <<
-                        "\nЗавершение работы и удаление json файлов - \"--exit\"" << endl;
+                        "\nЗавершение работы и удаление json файлов - \"--exit\"" << 
+                        "\nЗавершение работы без удаления json файлов - \"--exitn\"" << endl;
                     } else if (in_dr_command == "--find"){
                         cout << "\nВведите искомую подстроку: ";
                         string sub_found;
@@ -229,6 +244,9 @@ int main(){
                         find_in_file(sub_found);
                     } else if (in_dr_command == "--exit"){
                         close_program();
+                    } else if (in_dr_command == "--exitn") {
+                        cout << "Программа завершена." << endl;
+                        exit(0); 
                     } else {
                         cout << "Введена неверная команда, попробуйте снова." << endl;
                     }
