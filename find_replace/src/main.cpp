@@ -64,12 +64,13 @@ void close_program() {
 
 void find_in_file(const string& sub_to_found) {
     stats.total_commands++;
-    int i = 1;
     bool founded = false;
     long long int count_find = 0;
-    while (true) {
-        string filename = "../data/data" + to_string(i) + ".json";
-        string shortname = filename.substr(filename.find_last_of("/") + 1);
+    for (const auto& entry : fs::directory_iterator("../data")){
+        if (!entry.is_regular_file()) continue;
+        if (entry.path().extension() != ".json") continue;
+        string filename = entry.path().string();
+        string shortname = entry.path().filename().string();
         ifstream fin(filename);
         if (!fin.is_open()) break;
         string line;
@@ -87,15 +88,19 @@ void find_in_file(const string& sub_to_found) {
             if (pos_end_substr == string::npos) continue;
             string sub = line.substr(pos_start_substr, pos_end_substr - pos_start_substr);
             if (sub.find(sub_to_found) != string::npos) {
-                cout << shortname << "   " << name << "   " << sub << endl;
                 count_find +=1;
+                if (count_find == 1){
+                    cout << "Файл json  Файл с подстрокой  Содержание" << endl; 
+                }
+                cout << shortname << "   " << name << "   " << sub << endl;
                 founded = true;
             }
         }
-        i++;
     }
     stats.total_matches += count_find;
-    cout << "Всего было найдено " << count_find << " совпадений." << endl;
+    if (count_find != 0){
+        cout << "Всего было найдено " << count_find << " совпадений." << endl;
+    }
     if (!founded){
         cout << "Подстрока " << sub_to_found << " не была найдена ни в одном файле." << endl;
     }
@@ -234,7 +239,6 @@ int main(){
                 cout << "Введите искомую подстроку: ";
                 string sub_found;
                 cin >> sub_found;
-                cout << "Файл json  Файл с подстрокой  Содержание" << endl;
                 find_in_file(sub_found);
 
             } else if (command == "--replaceall"){
