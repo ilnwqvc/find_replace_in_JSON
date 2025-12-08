@@ -14,9 +14,6 @@ cmake-build-release/
 *.dll
 *.lib
 
-find_replace/tests/output/
-*.json
-
 bench/
 *.bench
 *.bin
