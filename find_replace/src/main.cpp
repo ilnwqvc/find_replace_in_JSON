@@ -103,12 +103,33 @@ void find_in_file(const string& sub_to_found) {
 
 void replace_in_file(string name_json, string name_file, string substr, string substr_replaced){
     stats.total_commands++;
-    ifstream fin("../data/"+ name_json + ".json");
-    ofstream fout("../data/"+ name_json + "edited.json");
-    if (!fin.is_open()){
-        cout << "Не удалось найти данный файл." << endl;
+
+    ifstream fin("../data/" + name_json + ".json");
+    if (!fin.is_open()) {
+        cout << "Ошибка: файл не найден." << endl;
         return;
     }
+
+    bool file_found = false;
+    {
+        string temp;
+        while (getline(fin, temp)) {
+            if (temp.find(name_file) != string::npos) {
+                file_found = true;
+                break;
+            }
+        }
+        fin.clear();
+        fin.seekg(0);
+    }
+
+    if (!file_found) {
+        cout << "Ошибка: имя \"" << name_file << "\" не найдено в файле." << endl;
+        return;
+    }
+
+    ofstream fout("../data/" + name_json + "edited.json");
+
     string line;
     size_t count_replace = 0;
     while (getline(fin, line)) {
@@ -118,28 +139,37 @@ void replace_in_file(string name_json, string name_file, string substr, string s
                 line.replace(pos, substr.size(), substr_replaced);
                 count_replace++;
             }
-            fout << line << endl;
-        } else {
-            fout << line << endl;
         }
+        fout << line << endl;
     }
-    if (count_replace > 0) stats.replacements_per_file.push_back({name_json + "edited.json", count_replace});
-    stats.total_replacements += count_replace;
-    cout << "Файл " << name_json + "edited.json создан." << endl;
-    cout << "Всего было совершено " << count_replace << " замен." << endl;
+
     fin.close();
     fout.close();
+
+    if (count_replace == 0) {
+        remove(("../data/" + name_json + "edited.json").c_str());
+        cout << "Ошибка: подстрока \"" << substr << "\" не найдена." << endl;
+        return;
+    }
+
+    stats.replacements_per_file.push_back({name_json + "edited.json", count_replace});
+    stats.total_replacements += count_replace;
+
+    cout << "Файл " << name_json + "edited.json создан." << endl;
+    cout << "Всего было совершено " << count_replace << " замен." << endl;
 }
+
 
 void replace_all(string name_json, string substr, string substr_replaced){
     stats.total_commands++;
     ifstream fin("../data/" + name_json + ".json");
-    ofstream fout("../data/" + name_json + "edited.json");
     if (!fin.is_open()){
         cout << "Не удалось найти данный файл." << endl;
         return;
     }
     string line;
+    ofstream fout("../data/" + name_json + "edited.json");
+
     size_t count_replace = 0;
     while (getline(fin, line)) {
         if (line.find("\"content\"") != string::npos && line.find(substr) != string::npos) {
@@ -151,27 +181,38 @@ void replace_all(string name_json, string substr, string substr_replaced){
         }
         fout << line << endl;
     }
-    if (count_replace > 0) stats.replacements_per_file.push_back({name_json + "edited.json", count_replace});
+    fin.close();
+    fout.close();
+    if (count_replace == 0) {
+        remove(("../data/" + name_json + "edited.json").c_str());
+        cout << "Ошибка: подстрока \"" << substr << "\" не найдена." << endl;
+        return;
+    }
+    stats.replacements_per_file.push_back({name_json + "edited.json", count_replace});
     stats.total_replacements += count_replace;
     cout << "Файл " << name_json + "edited.json создан." << endl;
     cout << "Всего было совершено " << count_replace << " замен." << endl;
-    fin.close();
-    fout.close();
 }
+
 
 int main(){
     setlocale(LC_ALL, "Russian");
     session_start = chrono::system_clock::now();
     string start_command;
     cout << "Для запуска программы с генерацией json файлов введите --start-generate, для запуска без генерации введите --start." << endl;
-    cin >> start_command;
-    if (start_command == "--start-generate"){
-        GenerateJSON(400000, 500000);
-        cout << "Файлы json были успешно сгенерированы, введите необходимую команду, или \"--help\" для получения списка команд." << endl;
-    } else if (start_command == "--start"){
-        cout << "Запущен режим работы с уже имеющимися json файлами, введите необходимую команду, или \"--help\" для получения списка команд." << endl;
-    } else {
-        cout << "Ошибка. Неизвестная команда, доступны режимы --start или --start-generate." << endl;
+
+    while (start_command != "--start" && start_command != "--start-generate") {
+        cout << "Введите команду (--start или --start-generate): ";
+        cin >> start_command; 
+
+        if (start_command == "--start-generate") {
+            GenerateJSON(400000, 500000);
+            cout << "Файлы json были успешно сгенерированы, введите необходимую команду, или \"--help\" для получения списка команд." << endl;
+        } else if (start_command == "--start") {
+            cout << "Запущен режим работы с уже имеющимися json файлами, введите необходимую команду, или \"--help\" для получения списка команд." << endl;
+        } else {
+            cout << "Ошибка. Неизвестная команда, доступны режимы --start или --start-generate." << endl;
+        }
     }
 
     string command;
@@ -216,6 +257,7 @@ int main(){
                 close_program();
             } else if (command == "--exitn") {
                 cout << "Программа завершена." << endl;
+                write_report();
                 exit(0); 
             } else {
                 cout << "Введена неверная команда, попробуйте снова." << endl;
@@ -246,6 +288,7 @@ int main(){
                         close_program();
                     } else if (in_dr_command == "--exitn") {
                         cout << "Программа завершена." << endl;
+                        write_report();
                         exit(0); 
                     } else {
                         cout << "Введена неверная команда, попробуйте снова." << endl;
